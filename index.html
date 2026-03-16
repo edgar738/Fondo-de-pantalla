@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#000005">
+<title>SOUND 3D</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body {
+    width:100vw; height:100vh;
+    overflow:hidden;
+    background:#000;
+    font-family:'Orbitron', monospace;
+    touch-action: none;
+  }
+
+  canvas#bg {
+    position:absolute; inset:0;
+    width:100%; height:100%;
+  }
+
+  .grid-lines {
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(0,255,180,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,180,0.04) 1px, transparent 1px);
+    background-size: 50px 50px;
+    pointer-events:none;
+  }
+
+  .overlay {
+    position:absolute; inset:0;
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 35%, rgba(0,255,180,0.05) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 60% at 15% 75%, rgba(80,0,255,0.09) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 40% at 88% 18%, rgba(255,60,120,0.06) 0%, transparent 60%);
+    pointer-events:none;
+  }
+
+  /* ── Expanding frequency rings ── */
+  .freq-rings {
+    position:absolute;
+    left:50%; top:44%;
+    transform:translate(-50%,-50%);
+    pointer-events:none;
+  }
+  .freq-ring {
+    position:absolute;
+    border-radius:50%;
+    border:1px solid rgba(0,255,180,0.08);
+    transform:translate(-50%,-50%);
+    animation:expand-ring var(--rt) ease-out infinite;
+  }
+  @keyframes expand-ring {
+    0%   { width:15vw; height:15vw; opacity:.7; }
+    100% { width:110vw; height:110vw; opacity:0; }
+  }
+
+  /* ── Center decoration ── */
+  .center-ring {
+    position:absolute;
+    left:50%; top:44%;
+    transform:translate(-50%,-50%);
+    width:55vw; height:55vw;
+    border-radius:50%;
+    border:1.5px solid rgba(0,255,180,0.22);
+    box-shadow: 0 0 40px rgba(0,255,180,0.10), inset 0 0 40px rgba(0,255,180,0.04);
+    animation:pulse-ring 3s ease-in-out infinite;
+    pointer-events:none;
+  }
+  .center-ring::before {
+    content:'';
+    position:absolute; inset:12%;
+    border-radius:50%;
+    border:1px solid rgba(0,255,180,0.10);
+  }
+  .center-ring::after {
+    content:'';
+    position:absolute; inset:25%;
+    border-radius:50%;
+    border:1px solid rgba(80,0,255,0.15);
+    animation:pulse-ring 3s ease-in-out infinite reverse;
+  }
+  @keyframes pulse-ring {
+    0%,100% { transform:translate(-50%,-50%) scale(1); opacity:.8; }
+    50%      { transform:translate(-50%,-50%) scale(1.04); opacity:1; }
+  }
+
+  /* ── Speaker SVG ── */
+  .speaker-wrap {
+    position:absolute;
+    left:50%; top:44%;
+    transform:translate(-50%,-50%);
+    width:22vw; height:22vw;
+    animation:speaker-pulse 2s ease-in-out infinite;
+  }
+  .speaker-wrap svg {
+    width:100%; height:100%;
+    filter:
+      drop-shadow(0 0 8px rgba(0,255,180,0.9))
+      drop-shadow(0 0 25px rgba(0,255,180,0.5))
+      drop-shadow(0 0 55px rgba(0,255,180,0.25));
+  }
+  @keyframes speaker-pulse {
+    0%,100% { transform:translate(-50%,-50%) scale(1); }
+    50%      { transform:translate(-50%,-50%) scale(1.06); }
+  }
+
+  /* ── EQ Bars ── */
+  .eq-bars {
+    position:absolute;
+    bottom:22vh;
+    left:50%; transform:translateX(-50%);
+    display:flex;
+    align-items:flex-end;
+    gap:clamp(3px,1vw,8px);
+    height:12vh;
+  }
+  .eq-bar {
+    width: clamp(6px,2.2vw,14px);
+    border-radius:3px 3px 0 0;
+    background:linear-gradient(to top, #00ffb4, #5000ff);
+    box-shadow:0 0 8px rgba(0,255,180,0.5);
+    animation:eq-dance var(--dur) ease-in-out infinite alternate;
+  }
+  @keyframes eq-dance {
+    from { height:var(--min); }
+    to   { height:var(--max); }
+  }
+
+  /* ── Waveform ── */
+  canvas#wave {
+    position:absolute;
+    bottom:16vh;
+    left:50%; transform:translateX(-50%);
+    width:88vw; height:6vh;
+    opacity:.6;
+  }
+
+  /* ── Title ── */
+  .title-block {
+    position:absolute;
+    bottom:6vh;
+    left:0; right:0;
+    text-align:center;
+  }
+  .title-block h1 {
+    font-size:clamp(36px,12vw,72px);
+    font-weight:900;
+    letter-spacing:.2em;
+    color:#fff;
+    text-shadow:
+      0 0 15px rgba(0,255,180,1),
+      0 0 40px rgba(0,255,180,0.6),
+      0 0 80px rgba(0,255,180,0.3);
+    animation:title-glow 2.5s ease-in-out infinite alternate;
+  }
+  .title-block p {
+    margin-top:6px;
+    font-size:clamp(10px,3.5vw,18px);
+    letter-spacing:.6em;
+    color:rgba(0,255,180,.5);
+  }
+  @keyframes title-glow {
+    from { text-shadow:0 0 15px rgba(0,255,180,.8),0 0 40px rgba(0,255,180,.4),0 0 70px rgba(0,255,180,.2); }
+    to   { text-shadow:0 0 25px rgba(0,255,180,1),0 0 60px rgba(0,255,180,.7),0 0 110px rgba(0,255,180,.4); }
+  }
+
+  /* ── Corners ── */
+  .corner { position:absolute; width:7vw; height:7vw; border-color:rgba(0,255,180,.35); border-style:solid; }
+  .corner-tl { top:5vw; left:5vw; border-width:2px 0 0 2px; }
+  .corner-tr { top:5vw; right:5vw; border-width:2px 2px 0 0; }
+  .corner-bl { bottom:5vw; left:5vw; border-width:0 0 2px 2px; }
+  .corner-br { bottom:5vw; right:5vw; border-width:0 2px 2px 0; }
+
+  /* ── Scan line ── */
+  .scan-line {
+    position:absolute; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, transparent, rgba(0,255,180,.35), transparent);
+    animation:scan 7s linear infinite;
+  }
+  @keyframes scan {
+    0%   { top:-2px; opacity:0; }
+    5%   { opacity:1; }
+    95%  { opacity:1; }
+    100% { top:100%; opacity:0; }
+  }
+
+  /* ── Particles ── */
+  .dot {
+    position:absolute; border-radius:50%;
+    animation:float-dot var(--t) ease-in-out infinite alternate;
+  }
+  @keyframes float-dot {
+    from { transform:translateY(0) scale(1); opacity:.8; }
+    to   { transform:translateY(var(--dy)) scale(.4); opacity:.15; }
+  }
+
+  /* ── Top label ── */
+  .hz-label {
+    position:absolute; top:4vh; left:50%; transform:translateX(-50%);
+    font-size:clamp(8px,2.5vw,14px);
+    letter-spacing:.5em;
+    color:rgba(0,255,180,.3);
+    white-space:nowrap;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+<div class="grid-lines"></div>
+<div class="overlay"></div>
+
+<div class="freq-rings">
+  <div class="freq-ring" style="--rt:3.2s; animation-delay:0s"></div>
+  <div class="freq-ring" style="--rt:3.2s; animation-delay:1.07s"></div>
+  <div class="freq-ring" style="--rt:3.2s; animation-delay:2.14s"></div>
+</div>
+
+<div class="center-ring"></div>
+
+<div class="speaker-wrap">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="14,35 14,65 28,65 52,80 52,20 28,35" fill="rgba(0,255,180,0.92)" stroke="rgba(0,255,180,0.4)" stroke-width="1"/>
+    <path d="M60,40 Q71,50 60,60" fill="none" stroke="rgba(0,255,180,0.85)" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M67,32 Q83,50 67,68" fill="none" stroke="rgba(0,255,180,0.55)" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M74,23 Q96,50 74,77" fill="none" stroke="rgba(0,255,180,0.22)" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+</div>
+
+<div class="eq-bars" id="eqBars"></div>
+<canvas id="wave"></canvas>
+
+<div class="scan-line"></div>
+
+<div class="corner corner-tl"></div>
+<div class="corner corner-tr"></div>
+<div class="corner corner-bl"></div>
+<div class="corner corner-br"></div>
+
+<div class="hz-label">FREQUENCY · SPECTRUM · ANALYSIS</div>
+
+<div class="title-block">
+  <h1>SOUND</h1>
+  <p>3 D &nbsp; A U D I O</p>
+</div>
+
+<div id="particles"></div>
+
+<script>
+// ── BG stars ──────────────────────────────────────────────
+const bg = document.getElementById('bg');
+function resize() { bg.width = window.innerWidth; bg.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+const ctx = bg.getContext('2d');
+
+const stars = Array.from({length:180}, () => ({
+  x: Math.random()*window.innerWidth,
+  y: Math.random()*window.innerHeight,
+  r: Math.random()*1.6+.2,
+  a: Math.random(),
+  da: (Math.random()-.5)*.007
+}));
+
+function drawBg() {
+  const W = bg.width, H = bg.height;
+  const grd = ctx.createRadialGradient(W/2,H*.45,0,W/2,H*.45,H*.8);
+  grd.addColorStop(0,'#04091a');
+  grd.addColorStop(.6,'#020612');
+  grd.addColorStop(1,'#000005');
+  ctx.fillStyle = grd; ctx.fillRect(0,0,W,H);
+
+  stars.forEach(s => {
+    s.a += s.da;
+    if(s.a>1||s.a<0) s.da*=-1;
+    ctx.beginPath();
+    ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(200,225,255,${s.a*.65})`;
+    ctx.fill();
+  });
+
+  const b1 = ctx.createRadialGradient(W*.2,H*.4,0,W*.2,H*.4,W*.4);
+  b1.addColorStop(0,'rgba(80,0,255,0.06)'); b1.addColorStop(1,'transparent');
+  ctx.fillStyle=b1; ctx.fillRect(0,0,W,H);
+
+  const b2 = ctx.createRadialGradient(W*.82,H*.72,0,W*.82,H*.72,W*.35);
+  b2.addColorStop(0,'rgba(255,50,120,0.055)'); b2.addColorStop(1,'transparent');
+  ctx.fillStyle=b2; ctx.fillRect(0,0,W,H);
+
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+// ── EQ Bars ────────────────────────────────────────────────
+const eqContainer = document.getElementById('eqBars');
+const barCount = window.innerWidth < 400 ? 24 : 32;
+for(let i=0;i<barCount;i++){
+  const b = document.createElement('div');
+  b.className='eq-bar';
+  const min=8+Math.random()*12, max=35+Math.random()*65, dur=.35+Math.random()*.75;
+  b.style.cssText=`--min:${min}px;--max:${max}px;--dur:${dur}s;animation-delay:${Math.random()*.6}s`;
+  eqContainer.appendChild(b);
+}
+
+// ── Waveform ───────────────────────────────────────────────
+const wc = document.getElementById('wave');
+wc.width = window.innerWidth*.88; wc.height = window.innerHeight*.06;
+const wctx = wc.getContext('2d');
+let wt=0;
+function drawWave(){
+  const W=wc.width, H=wc.height;
+  wctx.clearRect(0,0,W,H);
+  wctx.beginPath();
+  for(let x=0;x<=W;x++){
+    const y=H/2
+      +Math.sin(x*.04+wt)*H*.22
+      +Math.sin(x*.09+wt*1.4)*H*.12
+      +Math.sin(x*.018+wt*.65)*H*.18;
+    x===0?wctx.moveTo(x,y):wctx.lineTo(x,y);
+  }
+  const grd=wctx.createLinearGradient(0,0,W,0);
+  grd.addColorStop(0,'transparent');
+  grd.addColorStop(.12,'rgba(0,255,180,.75)');
+  grd.addColorStop(.88,'rgba(0,255,180,.75)');
+  grd.addColorStop(1,'transparent');
+  wctx.strokeStyle=grd; wctx.lineWidth=2; wctx.stroke();
+  wt+=.038;
+  requestAnimationFrame(drawWave);
+}
+drawWave();
+
+// ── Particles ─────────────────────────────────────────────
+const pt=document.getElementById('particles');
+const cols=['rgba(0,255,180,.7)','rgba(80,0,255,.6)','rgba(255,60,120,.5)'];
+for(let i=0;i<35;i++){
+  const d=document.createElement('div');
+  d.className='dot';
+  const sz=2+Math.random()*4, col=cols[Math.floor(Math.random()*3)];
+  d.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;background:${col};box-shadow:0 0 ${sz*2}px ${col};--t:${3+Math.random()*5}s;--dy:${(Math.random()-.5)*50}px;animation-delay:${Math.random()*4}s`;
+  pt.appendChild(d);
+}
+
+// ── PWA install prompt ─────────────────────────────────────
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  window._installPrompt = e;
+});
+</script>
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js");}</script>
+</body>
+</html>
